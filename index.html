@@ -97,7 +97,7 @@ button {
 
 <h2>📄 Job Report</h2>
 
-<input id="title" placeholder="Job Title">
+<input id="title" placeholder="Location">
 
 <!-- ADDED JOB TYPE SELECT -->
 <select id="jobType">
@@ -222,32 +222,35 @@ function generatePDF() {
   const pairs = getPairs();
 
   let page = 1;
-
-  // safer line height control
   const lineHeight = 5;
 
   for (let i = 0; i < pairs.length; i += 2) {
 
     if (i !== 0) pdf.addPage();
 
-    // ===== HEADER =====
-    pdf.setFontSize(14);
-    pdf.text(title, margin, 15);
+    let y;
 
-    pdf.setFontSize(11);
-    pdf.text("Type: " + jobType, margin, 21);
+    // ✅ ONLY FIRST PAGE SHOW TEXT
+    if (i === 0) {
+      pdf.setFontSize(14);
+      pdf.text("Location: " + title, margin, 15);
 
-    // ===== PROPER WRAPPED DESCRIPTION =====
-    pdf.setFontSize(10);
-    const descLines = pdf.splitTextToSize(desc, 180);
-    pdf.text(descLines, margin, 28);
+      pdf.setFontSize(11);
+      pdf.text("Type: " + jobType, margin, 21);
 
-    // dynamically calculate height of description
-    const descHeight = descLines.length * lineHeight;
+      pdf.setFontSize(10);
+      const descLines = pdf.splitTextToSize(desc, 180);
+      pdf.text(descLines, margin, 28);
 
-    let y = 28 + descHeight + 8;
+      const descHeight = descLines.length * lineHeight;
+      y = 28 + descHeight + 8;
 
-    // ===== DRAW PAIR BLOCKS =====
+    } else {
+      // ✅ NEXT PAGES START HIGHER (NO TEXT)
+      y = 20;
+    }
+
+    // DRAW IMAGES
     draw(pdf, pairs[i], y, imgW, imgH, margin);
 
     if (pairs[i + 1]) {
@@ -259,7 +262,7 @@ function generatePDF() {
   }
 
   pdf.save("job-report.pdf");
-}
+      }
 
 /* ================= DRAW PAIR ================= */
 function draw(pdf, p, y, w, h, m) {
