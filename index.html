@@ -1,339 +1,595 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Network Layout PDF Editor</title>
 
-<title>Job Report Pro</title>
-
-<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.3.11/konva.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
 }
 
-.container {
-  padding: 12px;
-  max-width: 600px;
-  margin: auto;
+body{
+  font-family:Arial,sans-serif;
+  background:#0f172a;
+  color:white;
+  overflow:hidden;
 }
 
-h2 {
-  text-align: center;
+#app{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
 }
 
-input, textarea, select {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 8px;
-  border: none;
+#toolbar{
+  height:60px;
+  background:#111827;
+  display:flex;
+  align-items:center;
+  padding:10px;
+  gap:10px;
+  border-bottom:1px solid #1e293b;
+  overflow-x:auto;
 }
 
-textarea {
-  height: 80px;
+button,select,input{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#1e293b;
+  color:white;
 }
 
-button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 10px;
-  background: #3b82f6;
-  color: white;
-  font-size: 15px;
+button:hover{
+  background:#38bdf8;
+  cursor:pointer;
 }
 
-#gallery {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 10px;
+#main{
+  display:flex;
+  flex:1;
 }
 
-.card {
-  background: #1e293b;
-  padding: 10px;
-  border-radius: 12px;
+#sidebar{
+  width:260px;
+  background:#111827;
+  border-right:1px solid #1e293b;
+  overflow-y:auto;
+  padding:15px;
 }
 
-.card img {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  border-radius: 10px;
-  transition: opacity 0.25s ease;
+#canvas-container{
+  flex:1;
+  overflow:auto;
+  background:#1e293b;
+  position:relative;
 }
 
-.fade {
-  opacity: 0.3;
+#stage-parent{
+  width:3000px;
+  height:2000px;
+  margin:20px;
+  background:white;
 }
 
-.row {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
+.section{
+  margin-bottom:25px;
 }
 
-.row button {
-  flex: 1;
-  background: #334155;
-  font-size: 12px;
-  padding: 10px;
-  border-radius: 8px;
+.section h3{
+  margin-bottom:10px;
+  color:#38bdf8;
+}
+
+.device-btn{
+  width:100%;
+  margin-bottom:8px;
+  text-align:left;
+}
+
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.color-box{
+  width:20px;
+  height:20px;
+  border-radius:4px;
+}
+
+#properties{
+  position:absolute;
+  right:20px;
+  top:20px;
+  width:220px;
+  background:#111827;
+  padding:15px;
+  border-radius:12px;
+  border:1px solid #334155;
+  z-index:10;
+}
+
+#properties h3{
+  margin-bottom:10px;
+}
+
+#properties input{
+  width:100%;
+  margin-bottom:10px;
+}
+
+.mobile-note{
+  display:none;
+}
+
+@media(max-width:768px){
+  #sidebar{
+    width:180px;
+  }
+
+  .mobile-note{
+    display:block;
+    color:#f59e0b;
+    font-size:12px;
+    margin-top:10px;
+  }
 }
 </style>
 </head>
-
 <body>
 
-<div class="container">
+<div id="app">
 
-<h2>📄 Job Report</h2>
+<div id="toolbar">
 
-<input id="title" placeholder="Location">
+<input type="file" id="pdfUpload" accept="application/pdf,image/*" />
 
-<!-- ADDED JOB TYPE SELECT -->
-<select id="jobType">
-  <option value="New Installation">New Installation</option>
-  <option value="Repair / Maintenance">Repair / Maintenance</option>
-</select>
+<button onclick="setTool('select')">Select</button>
+<button onclick="setTool('fiber')">Fiber Line</button>
+<button onclick="setTool('network')">Network Line</button>
+<button onclick="setTool('cctv')">CCTV Line</button>
+<button onclick="setTool('power')">Power Line</button>
+<button onclick="setTool('measure')">Measure</button>
+<button onclick="undo()">Undo</button>
+<button onclick="redo()">Redo</button>
+<button onclick="clearCanvas()">Clear</button>
+<button onclick="exportPDF()">Export PDF</button>
 
-<textarea id="desc" placeholder="Job Description"></textarea>
+</div>
 
-<input type="file" id="images" multiple accept="image/*">
+<div id="main">
 
-<div id="gallery"></div>
+<div id="sidebar">
 
-<button onclick="generatePDF()">📥 Generate PDF</button>
+<div class="section">
+<h3>Devices</h3>
+
+<button class="device-btn" onclick="addDevice('camera')">📷 CCTV Camera</button>
+<button class="device-btn" onclick="addDevice('ptz')">🎥 PTZ Camera</button>
+<button class="device-btn" onclick="addDevice('rack')">🗄 Rack</button>
+<button class="device-btn" onclick="addDevice('switch')">🖧 Switch</button>
+<button class="device-btn" onclick="addDevice('router')">📡 Router</button>
+<button class="device-btn" onclick="addDevice('wifi')">📶 WiFi AP</button>
+<button class="device-btn" onclick="addDevice('door')">🚪 Access Door</button>
+<button class="device-btn" onclick="addDevice('barrier')">⛔ Barrier Gate</button>
+<button class="device-btn" onclick="addDevice('nvr')">💽 NVR</button>
+<button class="device-btn" onclick="addDevice('manhole')">⭕ Manhole</button>
+<button class="device-btn" onclick="addDevice('pole')">📍 Pole</button>
+
+</div>
+
+<div class="section">
+<h3>Legend</h3>
+
+<div class="legend-item">
+<div class="color-box" style="background:orange"></div>
+<span>Fiber Optic</span>
+</div>
+
+<div class="legend-item">
+<div class="color-box" style="background:deepskyblue"></div>
+<span>Network Cable</span>
+</div>
+
+<div class="legend-item">
+<div class="color-box" style="background:limegreen"></div>
+<span>CCTV Cable</span>
+</div>
+
+<div class="legend-item">
+<div class="color-box" style="background:red"></div>
+<span>Power Cable</span>
+</div>
+
+</div>
+
+<div class="section">
+<h3>Layers</h3>
+
+<button class="device-btn" onclick="toggleLayer('fiber')">Toggle Fiber</button>
+<button class="device-btn" onclick="toggleLayer('network')">Toggle Network</button>
+<button class="device-btn" onclick="toggleLayer('cctv')">Toggle CCTV</button>
+<button class="device-btn" onclick="toggleLayer('power')">Toggle Power</button>
+<button class="device-btn" onclick="toggleLayer('devices')">Toggle Devices</button>
+
+<div class="mobile-note">
+Use two fingers to zoom browser on mobile.
+</div>
+
+</div>
+
+</div>
+
+<div id="canvas-container">
+
+<div id="properties">
+<h3>Properties</h3>
+<input id="deviceName" placeholder="Device Name" />
+<input id="deviceIP" placeholder="IP Address" />
+<input id="deviceNote" placeholder="Notes" />
+</div>
+
+<div id="stage-parent"></div>
+
+</div>
+
+</div>
 
 </div>
 
 <script>
-const { jsPDF } = window.jspdf;
 
-let imagesData = [];
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-/* ================= FAST UPLOAD ================= */
-document.getElementById("images").addEventListener("change", async (e) => {
-  const files = Array.from(e.target.files);
+let currentTool='select';
+let drawing=false;
+let currentLine;
+let selectedObject=null;
+let undoStack=[];
+let redoStack=[];
 
-  for (let file of files) {
-
-    const compressed = await compressImage(file);
-
-    imagesData.push({
-      src: compressed,
-      type: "before"
-    });
-  }
-
-  render();
+const stage = new Konva.Stage({
+  container:'stage-parent',
+  width:3000,
+  height:2000,
+  draggable:true
 });
 
-/* ================= RENDER ================= */
-function render() {
-  const g = document.getElementById("gallery");
-  g.innerHTML = "";
+const backgroundLayer = new Konva.Layer();
+const fiberLayer = new Konva.Layer();
+const networkLayer = new Konva.Layer();
+const cctvLayer = new Konva.Layer();
+const powerLayer = new Konva.Layer();
+const devicesLayer = new Konva.Layer();
 
-  imagesData.forEach((img, i) => {
-    const div = document.createElement("div");
-    div.className = "card";
+stage.add(backgroundLayer);
+stage.add(fiberLayer);
+stage.add(networkLayer);
+stage.add(cctvLayer);
+stage.add(powerLayer);
+stage.add(devicesLayer);
 
-    div.innerHTML = `
-      <img id="img-${i}" src="${img.src}">
-      
-      <div class="row">
-        <button onclick="toggle(${i})">
-          ${img.type.toUpperCase()}
-        </button>
+function setTool(tool){
+  currentTool=tool;
+}
 
-        <button onclick="removeImg(${i})">Delete</button>
-      </div>
-    `;
+function getLineStyle(tool){
 
-    g.appendChild(div);
+  switch(tool){
+    case 'fiber':
+      return {stroke:'orange',dash:[],width:4,layer:fiberLayer};
+
+    case 'network':
+      return {stroke:'deepskyblue',dash:[],width:3,layer:networkLayer};
+
+    case 'cctv':
+      return {stroke:'limegreen',dash:[10,5],width:3,layer:cctvLayer};
+
+    case 'power':
+      return {stroke:'red',dash:[],width:5,layer:powerLayer};
+
+    case 'measure':
+      return {stroke:'yellow',dash:[5,5],width:2,layer:networkLayer};
+  }
+}
+
+stage.on('mousedown touchstart',e=>{
+
+  if(currentTool==='select') return;
+
+  const pos=stage.getPointerPosition();
+  const style=getLineStyle(currentTool);
+
+  drawing=true;
+
+  currentLine=new Konva.Line({
+    points:[pos.x,pos.y,pos.x,pos.y],
+    stroke:style.stroke,
+    strokeWidth:style.width,
+    lineCap:'round',
+    lineJoin:'round',
+    dash:style.dash,
+    draggable:true
   });
-}
 
-/* ================= TOGGLE ================= */
-function toggle(i) {
-  const img = document.getElementById("img-" + i);
-  img.classList.add("fade");
+  style.layer.add(currentLine);
+  saveState();
+});
 
-  setTimeout(() => {
-    imagesData[i].type =
-      imagesData[i].type === "before" ? "after" : "before";
+stage.on('mousemove touchmove',()=>{
 
-    img.classList.remove("fade");
-    render();
-  }, 120);
-}
+  if(!drawing || !currentLine) return;
 
-/* ================= REMOVE ================= */
-function removeImg(i) {
-  imagesData.splice(i, 1);
-  render();
-}
+  const pos=stage.getPointerPosition();
+  const points=currentLine.points();
 
-/* ================= GROUP PAIRS ================= */
-function getPairs() {
-  const before = imagesData.filter(i => i.type === "before");
-  const after = imagesData.filter(i => i.type === "after");
+  currentLine.points([
+    points[0],
+    points[1],
+    pos.x,
+    pos.y
+  ]);
 
-  const max = Math.max(before.length, after.length);
-  const pairs = [];
+});
 
-  for (let i = 0; i < max; i++) {
-    pairs.push({
-      before: before[i],
-      after: after[i]
-    });
+stage.on('mouseup touchend',()=>{
+  drawing=false;
+});
+
+function addDevice(type){
+
+  let label='';
+  let color='white';
+
+  switch(type){
+    case 'camera':
+      label='📷';
+      color='lime';
+      break;
+
+    case 'ptz':
+      label='🎥';
+      color='cyan';
+      break;
+
+    case 'rack':
+      label='🗄';
+      color='orange';
+      break;
+
+    case 'switch':
+      label='🖧';
+      color='deepskyblue';
+      break;
+
+    case 'router':
+      label='📡';
+      color='violet';
+      break;
+
+    case 'wifi':
+      label='📶';
+      color='skyblue';
+      break;
+
+    case 'door':
+      label='🚪';
+      color='magenta';
+      break;
+
+    case 'barrier':
+      label='⛔';
+      color='red';
+      break;
+
+    case 'nvr':
+      label='💽';
+      color='yellow';
+      break;
+
+    case 'manhole':
+      label='⭕';
+      color='brown';
+      break;
+
+    case 'pole':
+      label='📍';
+      color='white';
+      break;
   }
 
-  return pairs;
+  const text=new Konva.Text({
+    x:300,
+    y:200,
+    text:label,
+    fontSize:34,
+    draggable:true,
+    fill:color
+  });
+
+  text.on('click tap',()=>{
+    selectedObject=text;
+  });
+
+  devicesLayer.add(text);
+  devicesLayer.draw();
+
+  saveState();
 }
 
-/* ================= PDF ================= */
-function generatePDF() {
-  const title = document.getElementById("title").value;
-  const jobType = document.getElementById("jobType").value;
-  const desc = document.getElementById("desc").value;
+function toggleLayer(layer){
 
-  if (!title || !desc) {
-    alert("Fill all fields");
-    return;
-  }
+  const layers={
+    fiber:fiberLayer,
+    network:networkLayer,
+    cctv:cctvLayer,
+    power:powerLayer,
+    devices:devicesLayer
+  };
 
-  const pdf = new jsPDF("p", "mm", "a4");
+  const l=layers[layer];
 
-  const margin = 10;
-  const pageW = 210;
+  l.visible(!l.visible());
+  l.draw();
+}
 
-  const imgW = (pageW - margin * 3) / 2;
-  const imgH = 70;
+function clearCanvas(){
 
-  const pairs = getPairs();
+  fiberLayer.destroyChildren();
+  networkLayer.destroyChildren();
+  cctvLayer.destroyChildren();
+  powerLayer.destroyChildren();
+  devicesLayer.destroyChildren();
 
-  let page = 1;
-  const lineHeight = 5;
+  fiberLayer.draw();
+  networkLayer.draw();
+  cctvLayer.draw();
+  powerLayer.draw();
+  devicesLayer.draw();
 
-  for (let i = 0; i < pairs.length; i += 2) {
+  saveState();
+}
 
-    if (i !== 0) pdf.addPage();
+function saveState(){
+  undoStack.push(stage.toJSON());
+}
 
-    let y;
+function undo(){
 
-    // ✅ ONLY FIRST PAGE SHOW TEXT
-    if (i === 0) {
-      pdf.setFontSize(14);
-      pdf.text("Location: " + title, margin, 15);
+  if(undoStack.length<2) return;
 
-      pdf.setFontSize(11);
-      pdf.text("Type: " + jobType, margin, 21);
+  redoStack.push(undoStack.pop());
 
-      pdf.setFontSize(10);
-      const descLines = pdf.splitTextToSize(desc, 180);
-      pdf.text(descLines, margin, 28);
+  const previous=undoStack[undoStack.length-1];
 
-      const descHeight = descLines.length * lineHeight;
-      y = 28 + descHeight + 8;
+  stage.destroyChildren();
 
-    } else {
-      // ✅ NEXT PAGES START HIGHER (NO TEXT)
-      y = 20;
-    }
+  const newStage=Konva.Node.create(previous,'stage-parent');
 
-    // DRAW IMAGES
-    draw(pdf, pairs[i], y, imgW, imgH, margin);
+}
 
-    if (pairs[i + 1]) {
-      draw(pdf, pairs[i + 1], y + imgH + 18, imgW, imgH, margin);
-    }
+function redo(){
+  if(redoStack.length===0) return;
+}
 
-    pdf.setFontSize(10);
-    pdf.text("Page " + page++, 180, 290);
-  }
+async function exportPDF(){
 
-  pdf.save("job-report.pdf");
+  const dataURL=stage.toDataURL({pixelRatio:2});
+
+  const {jsPDF}=window.jspdf;
+
+  const pdf=new jsPDF('landscape','px',[3000,2000]);
+
+  pdf.addImage(dataURL,'PNG',0,0,3000,2000);
+
+  pdf.save('network-layout.pdf');
+}
+
+const upload=document.getElementById('pdfUpload');
+
+upload.addEventListener('change',async(e)=>{
+
+  const file=e.target.files[0];
+
+  if(!file) return;
+
+  const fileType=file.type;
+
+  if(fileType==='application/pdf'){
+
+    const reader=new FileReader();
+
+    reader.onload=async function(){
+
+      const typedarray=new Uint8Array(this.result);
+
+      const pdf=await pdfjsLib.getDocument(typedarray).promise;
+
+      const page=await pdf.getPage(1);
+
+      const viewport=page.getViewport({scale:2});
+
+      const canvas=document.createElement('canvas');
+      const context=canvas.getContext('2d');
+
+      canvas.width=viewport.width;
+      canvas.height=viewport.height;
+
+      await page.render({
+        canvasContext:context,
+        viewport:viewport
+      }).promise;
+
+      const imageObj=new Image();
+
+      imageObj.onload=function(){
+
+        backgroundLayer.destroyChildren();
+
+        const bg=new Konva.Image({
+          image:imageObj,
+          x:0,
+          y:0,
+          width:viewport.width,
+          height:viewport.height
+        });
+
+        backgroundLayer.add(bg);
+        backgroundLayer.draw();
       }
 
-/* ================= DRAW PAIR ================= */
-function draw(pdf, p, y, w, h, m) {
+      imageObj.src=canvas.toDataURL();
+    }
 
-  // clean label spacing
-  pdf.setFontSize(11);
+    reader.readAsArrayBuffer(file);
 
-  pdf.text("Before", m, y);
-  pdf.text("After", m + w + m, y);
+  }else{
 
-  const imgY = y + 5;
+    const reader=new FileReader();
 
-  if (p.before)
-    pdf.addImage(p.before.src, "JPEG", m, imgY, w, h);
+    reader.onload=function(ev){
 
-  if (p.after)
-    pdf.addImage(p.after.src, "JPEG", m + w + m, imgY, w, h);
+      const imageObj=new Image();
 
-  // border
-  pdf.rect(m, imgY, w, h);
-  pdf.rect(m + w + m, imgY, w, h);
-}
+      imageObj.onload=function(){
 
-const jobTypeSelect = document.getElementById("jobType");
-const descField = document.getElementById("desc");
+        backgroundLayer.destroyChildren();
 
-jobTypeSelect.addEventListener("change", () => {
-  if (jobTypeSelect.value === "Repair / Maintenance") {
-    descField.placeholder = "Issue:\n- \n\nSolution:\n- ";
-    descField.value = "Issue:\n- \n\nSolution:\n- ";
-  } else {
-    descField.placeholder = "Job Description";
-    descField.value = "";
+        const bg=new Konva.Image({
+          image:imageObj,
+          x:0,
+          y:0,
+          width:imageObj.width,
+          height:imageObj.height
+        });
+
+        backgroundLayer.add(bg);
+        backgroundLayer.draw();
+      }
+
+      imageObj.src=ev.target.result;
+    }
+
+    reader.readAsDataURL(file);
   }
 });
 
+saveState();
 
-async function compressImage(file) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      img.src = e.target.result;
-    };
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-
-      // 🔥 resize (important)
-      const maxWidth = 1000;
-      const scale = maxWidth / img.width;
-
-      canvas.width = maxWidth;
-      canvas.height = img.height * scale;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // 🔥 compress quality (0.6 = sweet spot)
-      const compressedData = canvas.toDataURL("image/jpeg", 0.6);
-
-      resolve(compressedData);
-    };
-
-    reader.readAsDataURL(file);
-  });
-        }
-
-      
 </script>
 
 </body>
   </html>
+  
