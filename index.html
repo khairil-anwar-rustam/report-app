@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Network Layout PRO</title>
+<title>Network Layout PRO Fiber Core</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.3.11/konva.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
+
 *{
   margin:0;
   padding:0;
@@ -32,12 +31,6 @@ body{
   inset:0;
 }
 
-#app{
-  display:flex;
-  flex-direction:column;
-  height:100%;
-}
-
 /* TOP BAR */
 #toolbar{
   height:55px;
@@ -48,128 +41,22 @@ body{
   padding:6px;
   overflow-x:auto;
   white-space:nowrap;
-  border-bottom:1px solid #1e293b;
 }
 
-button,input{
+button,select{
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   background:#1e293b;
   color:white;
   padding:8px 10px;
   font-size:12px;
-  flex-shrink:0;
-}
-
-button:active{
-  transform:scale(0.96);
-}
-
-/* MAIN */
-#main{
-  flex:1;
-  display:flex;
-  overflow:hidden;
-  position:relative;
-}
-
-/* SIDEBAR */
-#sidebar{
-  width:240px;
-  background:#111827;
-  border-right:1px solid #1e293b;
-  overflow-y:auto;
-  padding:12px;
-  transition:0.3s;
-  position:relative;
-  z-index:50;
-}
-
-.section{
-  margin-bottom:20px;
-}
-
-.section h3{
-  color:#38bdf8;
-  margin-bottom:10px;
-}
-
-.device-btn{
-  width:100%;
-  margin-bottom:6px;
-  text-align:left;
 }
 
 /* CANVAS */
-#canvas-container{
-  flex:1;
-  position:relative;
-  overflow:hidden;
+#stage{
+  width:100%;
+  height:calc(100% - 55px);
   background:#1e293b;
-}
-
-#stage-parent{
-  width:100%;
-  height:100%;
-  touch-action:none;
-}
-
-/* PROPERTIES */
-#properties{
-  position:absolute;
-  top:10px;
-  right:10px;
-  width:200px;
-  background:#111827;
-  border:1px solid #334155;
-  padding:10px;
-  border-radius:12px;
-  z-index:100;
-}
-
-#properties input{
-  width:100%;
-  margin-bottom:8px;
-  font-size:12px;
-  padding:6px;
-}
-
-/* MOBILE MENU */
-#menuBtn{
-  display:none;
-  position:absolute;
-  bottom:10px;
-  left:10px;
-  width:50px;
-  height:50px;
-  border-radius:50%;
-  font-size:20px;
-  background:#38bdf8;
-  z-index:200;
-}
-
-/* MOBILE */
-@media(max-width:768px){
-
-  #sidebar{
-    position:absolute;
-    left:-260px;
-    top:0;
-    bottom:0;
-    width:220px;
-  }
-
-  #sidebar.show{
-    left:0;
-  }
-
-  #menuBtn{
-    display:block;
-  }
-
-  #properties{
-    width:150px;
-  }
 }
 
 </style>
@@ -177,182 +64,120 @@ button:active{
 
 <body>
 
-<div id="app">
-
 <div id="toolbar">
 
-<input type="file" id="pdfUpload" accept="application/pdf,image/*"/>
+<select id="fiberCore">
+  <option value="1">1 Core</option>
+  <option value="2">2 Core</option>
+  <option value="4">4 Core</option>
+  <option value="6">6 Core</option>
+  <option value="8">8 Core</option>
+  <option value="12">12 Core</option>
+</select>
 
-<button onclick="setTool('select')">Select</button>
 <button onclick="setTool('fiber')">Fiber</button>
-<button onclick="setTool('network')">Network</button>
-<button onclick="setTool('cctv')">CCTV</button>
-<button onclick="setTool('power')">Power</button>
-
-<button onclick="clearCanvas()">Clear</button>
-<button onclick="exportPDF()">Export</button>
+<button onclick="setTool('move')">Move</button>
 
 </div>
 
-<div id="main">
-
-<div id="sidebar">
-
-<div class="section">
-<h3>Devices</h3>
-
-<button class="device-btn" onclick="addDevice('camera')">📷 Camera</button>
-<button class="device-btn" onclick="addDevice('rack')">🗄 Rack</button>
-<button class="device-btn" onclick="addDevice('switch')">🖧 Switch</button>
-<button class="device-btn" onclick="addDevice('router')">📡 Router</button>
-<button class="device-btn" onclick="addDevice('wifi')">📶 AP</button>
-<button class="device-btn" onclick="addDevice('door')">🚪 Door</button>
-<button class="device-btn" onclick="addDevice('barrier')">⛔ Gate</button>
-<button class="device-btn" onclick="addDevice('nvr')">💽 NVR</button>
-<button class="device-btn" onclick="addDevice('manhole')">⭕ Manhole</button>
-
-</div>
-
-</div>
-
-<div id="canvas-container">
-
-<button id="menuBtn" onclick="toggleSidebar()">☰</button>
-
-<div id="properties">
-<h3>Properties</h3>
-<input placeholder="Name"/>
-<input placeholder="IP"/>
-<input placeholder="Note"/>
-</div>
-
-<div id="stage-parent"></div>
-
-</div>
-
-</div>
-
-</div>
+<div id="stage"></div>
 
 <script>
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-let tool='select';
-let drawing=false;
-let line;
-
 const stage = new Konva.Stage({
-  container:'stage-parent',
+  container:'stage',
   width:window.innerWidth,
   height:window.innerHeight,
   draggable:true
 });
 
-const layers={
-  fiber:new Konva.Layer(),
-  network:new Konva.Layer(),
-  cctv:new Konva.Layer(),
-  power:new Konva.Layer(),
-  device:new Konva.Layer(),
-  bg:new Konva.Layer()
-};
+const layer = new Konva.Layer();
+stage.add(layer);
 
-Object.values(layers).forEach(l=>stage.add(l));
+let tool='move';
+let drawing=false;
+let activeGroup=null;
 
-function setTool(t){tool=t;}
-
-function getStyle(t){
-  if(t==='fiber') return {c:'orange',w:4,l:layers.fiber};
-  if(t==='network') return {c:'deepskyblue',w:3,l:layers.network};
-  if(t==='cctv') return {c:'limegreen',w:3,l:layers.cctv};
-  if(t==='power') return {c:'red',w:5,l:layers.power};
+function setTool(t){
+  tool=t;
 }
 
-stage.on('mousedown touchstart',e=>{
-  if(tool==='select') return;
+// Fiber core colors (telecom standard style)
+const fiberColors = [
+  'red','blue','yellow','green','orange','purple',
+  'cyan','magenta','lime','white','pink','brown'
+];
 
-  const p=stage.getPointerPosition();
-  const s=getStyle(tool);
+function getColors(n){
+  return fiberColors.slice(0,n);
+}
 
-  drawing=true;
+stage.on('mousedown touchstart',()=>{
 
-  line=new Konva.Line({
-    points:[p.x,p.y,p.x,p.y],
-    stroke:s.c,
-    strokeWidth:s.w,
-    lineCap:'round'
-  });
+  if(tool!=='fiber') return;
 
-  s.l.add(line);
-});
+  const pos = stage.getPointerPosition();
 
-stage.on('mousemove touchmove',()=>{
-  if(!drawing||!line) return;
+  const cores = parseInt(document.getElementById('fiberCore').value);
+  const colors = getColors(cores);
 
-  const p=stage.getPointerPosition();
-  let pts=line.points();
-
-  line.points([pts[0],pts[1],p.x,p.y]);
-});
-
-stage.on('mouseup touchend',()=>drawing=false);
-
-function addDevice(type){
-
-  const iconMap={
-    camera:'📷',
-    rack:'🗄',
-    switch:'🖧',
-    router:'📡',
-    wifi:'📶',
-    door:'🚪',
-    barrier:'⛔',
-    nvr:'💽',
-    manhole:'⭕'
-  };
-
-  const g=new Konva.Group({
-    x:200,
-    y:200,
+  const group = new Konva.Group({
     draggable:true
   });
 
-  const text=new Konva.Text({
-    text:iconMap[type],
-    fontSize:30,
-    fill:'white'
+  for(let i=0;i<cores;i++){
+
+    const line = new Konva.Line({
+      points:[pos.x, pos.y + (i*3), pos.x, pos.y + (i*3)],
+      stroke:colors[i],
+      strokeWidth:2,
+      lineCap:'round'
+    });
+
+    group.add(line);
+  }
+
+  layer.add(group);
+  activeGroup=group;
+  drawing=true;
+
+});
+
+stage.on('mousemove touchmove',()=>{
+
+  if(!drawing || !activeGroup || tool!=='fiber') return;
+
+  const pos = stage.getPointerPosition();
+
+  const lines = activeGroup.getChildren();
+
+  lines.forEach((l,i)=>{
+
+    const pts = l.points();
+
+    l.points([
+      pts[0],
+      pts[1],
+      pos.x,
+      pos.y + (i*3)
+    ]);
+
   });
 
-  g.add(text);
-  layers.device.add(g);
-}
+});
 
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('show');
-}
+stage.on('mouseup touchend',()=>{
 
-function clearCanvas(){
-  Object.values(layers).forEach(l=>l.destroyChildren());
-}
+  drawing=false;
+  activeGroup=null;
 
-function exportPDF(){
-
-  const data=stage.toDataURL({pixelRatio:2});
-
-  const {jsPDF}=window.jspdf;
-
-  const pdf=new jsPDF('landscape','px',[2000,1200]);
-
-  pdf.addImage(data,'PNG',0,0,2000,1200);
-
-  pdf.save('layout.pdf');
-}
+});
 
 window.addEventListener('resize',()=>{
+
   stage.width(window.innerWidth);
   stage.height(window.innerHeight);
+
 });
 
 </script>
