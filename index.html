@@ -3,42 +3,51 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Network Layout PDF Editor PRO</title>
+<title>Network Layout PRO</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.3.11/konva.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-
 *{
   margin:0;
   padding:0;
   box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#0f172a;
+  color:white;
+  font-family:Arial;
   touch-action:none;
 }
 
 body{
-  font-family:Arial,sans-serif;
-  background:#0f172a;
-  color:white;
-  overflow:hidden;
+  position:fixed;
+  inset:0;
 }
 
 #app{
   display:flex;
   flex-direction:column;
-  height:100vh;
+  height:100%;
 }
 
+/* TOP BAR */
 #toolbar{
-  height:65px;
+  height:55px;
   background:#111827;
   display:flex;
   align-items:center;
   gap:8px;
-  padding:10px;
+  padding:6px;
   overflow-x:auto;
+  white-space:nowrap;
   border-bottom:1px solid #1e293b;
 }
 
@@ -47,111 +56,120 @@ button,input{
   border-radius:10px;
   background:#1e293b;
   color:white;
-  padding:10px 14px;
-  font-size:14px;
-  white-space:nowrap;
+  padding:8px 10px;
+  font-size:12px;
+  flex-shrink:0;
 }
 
-button:hover{
-  background:#38bdf8;
+button:active{
+  transform:scale(0.96);
 }
 
+/* MAIN */
 #main{
   flex:1;
   display:flex;
   overflow:hidden;
+  position:relative;
 }
 
+/* SIDEBAR */
 #sidebar{
   width:240px;
   background:#111827;
-  overflow-y:auto;
   border-right:1px solid #1e293b;
-  padding:15px;
+  overflow-y:auto;
+  padding:12px;
+  transition:0.3s;
+  position:relative;
+  z-index:50;
 }
 
 .section{
-  margin-bottom:25px;
+  margin-bottom:20px;
 }
 
 .section h3{
-  margin-bottom:10px;
   color:#38bdf8;
+  margin-bottom:10px;
 }
 
 .device-btn{
   width:100%;
-  margin-bottom:8px;
+  margin-bottom:6px;
   text-align:left;
 }
 
+/* CANVAS */
 #canvas-container{
   flex:1;
-  overflow:hidden;
   position:relative;
+  overflow:hidden;
   background:#1e293b;
 }
 
 #stage-parent{
   width:100%;
   height:100%;
+  touch-action:none;
 }
 
-.legend-item{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:8px;
-}
-
-.color-box{
-  width:20px;
-  height:20px;
-  border-radius:5px;
-}
-
+/* PROPERTIES */
 #properties{
   position:absolute;
-  top:20px;
-  right:20px;
-  width:220px;
+  top:10px;
+  right:10px;
+  width:200px;
   background:#111827;
   border:1px solid #334155;
+  padding:10px;
   border-radius:12px;
-  padding:15px;
   z-index:100;
-}
-
-#properties h3{
-  margin-bottom:10px;
 }
 
 #properties input{
   width:100%;
-  margin-bottom:10px;
-}
-
-.mobile-note{
-  margin-top:10px;
-  color:#f59e0b;
+  margin-bottom:8px;
   font-size:12px;
+  padding:6px;
 }
 
+/* MOBILE MENU */
+#menuBtn{
+  display:none;
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  font-size:20px;
+  background:#38bdf8;
+  z-index:200;
+}
+
+/* MOBILE */
 @media(max-width:768px){
 
   #sidebar{
-    width:180px;
+    position:absolute;
+    left:-260px;
+    top:0;
+    bottom:0;
+    width:220px;
   }
 
-  button,input{
-    font-size:12px;
-    padding:8px;
+  #sidebar.show{
+    left:0;
+  }
+
+  #menuBtn{
+    display:block;
   }
 
   #properties{
-    width:180px;
+    width:150px;
   }
-
 }
 
 </style>
@@ -170,10 +188,9 @@ button:hover{
 <button onclick="setTool('network')">Network</button>
 <button onclick="setTool('cctv')">CCTV</button>
 <button onclick="setTool('power')">Power</button>
-<button onclick="setTool('measure')">Measure</button>
 
 <button onclick="clearCanvas()">Clear</button>
-<button onclick="exportPDF()">Export PDF</button>
+<button onclick="exportPDF()">Export</button>
 
 </div>
 
@@ -182,62 +199,17 @@ button:hover{
 <div id="sidebar">
 
 <div class="section">
-
 <h3>Devices</h3>
 
-<button class="device-btn" onclick="addDevice('camera')">📷 CCTV Camera</button>
-<button class="device-btn" onclick="addDevice('ptz')">🎥 PTZ Camera</button>
+<button class="device-btn" onclick="addDevice('camera')">📷 Camera</button>
 <button class="device-btn" onclick="addDevice('rack')">🗄 Rack</button>
 <button class="device-btn" onclick="addDevice('switch')">🖧 Switch</button>
 <button class="device-btn" onclick="addDevice('router')">📡 Router</button>
-<button class="device-btn" onclick="addDevice('wifi')">📶 WiFi AP</button>
-<button class="device-btn" onclick="addDevice('door')">🚪 Access Door</button>
-<button class="device-btn" onclick="addDevice('barrier')">⛔ Barrier Gate</button>
+<button class="device-btn" onclick="addDevice('wifi')">📶 AP</button>
+<button class="device-btn" onclick="addDevice('door')">🚪 Door</button>
+<button class="device-btn" onclick="addDevice('barrier')">⛔ Gate</button>
 <button class="device-btn" onclick="addDevice('nvr')">💽 NVR</button>
 <button class="device-btn" onclick="addDevice('manhole')">⭕ Manhole</button>
-<button class="device-btn" onclick="addDevice('pole')">📍 Pole</button>
-
-</div>
-
-<div class="section">
-
-<h3>Legend</h3>
-
-<div class="legend-item">
-<div class="color-box" style="background:orange"></div>
-<span>Fiber Optic</span>
-</div>
-
-<div class="legend-item">
-<div class="color-box" style="background:deepskyblue"></div>
-<span>Network Cable</span>
-</div>
-
-<div class="legend-item">
-<div class="color-box" style="background:limegreen"></div>
-<span>CCTV Cable</span>
-</div>
-
-<div class="legend-item">
-<div class="color-box" style="background:red"></div>
-<span>Power Cable</span>
-</div>
-
-</div>
-
-<div class="section">
-
-<h3>Layers</h3>
-
-<button class="device-btn" onclick="toggleLayer('fiber')">Toggle Fiber</button>
-<button class="device-btn" onclick="toggleLayer('network')">Toggle Network</button>
-<button class="device-btn" onclick="toggleLayer('cctv')">Toggle CCTV</button>
-<button class="device-btn" onclick="toggleLayer('power')">Toggle Power</button>
-<button class="device-btn" onclick="toggleLayer('devices')">Toggle Devices</button>
-
-<div class="mobile-note">
-Pinch to zoom • Drag with two fingers
-</div>
 
 </div>
 
@@ -245,14 +217,13 @@ Pinch to zoom • Drag with two fingers
 
 <div id="canvas-container">
 
+<button id="menuBtn" onclick="toggleSidebar()">☰</button>
+
 <div id="properties">
-
 <h3>Properties</h3>
-
-<input id="deviceName" placeholder="Device Name"/>
-<input id="deviceIP" placeholder="IP Address"/>
-<input id="deviceNote" placeholder="Notes"/>
-
+<input placeholder="Name"/>
+<input placeholder="IP"/>
+<input placeholder="Note"/>
 </div>
 
 <div id="stage-parent"></div>
@@ -268,13 +239,9 @@ Pinch to zoom • Drag with two fingers
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let currentTool='select';
+let tool='select';
 let drawing=false;
-let currentLine;
-let selectedObject=null;
-
-let lastDist=0;
-let lastCenter=null;
+let line;
 
 const stage = new Konva.Stage({
   container:'stage-parent',
@@ -283,509 +250,109 @@ const stage = new Konva.Stage({
   draggable:true
 });
 
-const backgroundLayer = new Konva.Layer();
-const fiberLayer = new Konva.Layer();
-const networkLayer = new Konva.Layer();
-const cctvLayer = new Konva.Layer();
-const powerLayer = new Konva.Layer();
-const devicesLayer = new Konva.Layer();
+const layers={
+  fiber:new Konva.Layer(),
+  network:new Konva.Layer(),
+  cctv:new Konva.Layer(),
+  power:new Konva.Layer(),
+  device:new Konva.Layer(),
+  bg:new Konva.Layer()
+};
 
-stage.add(backgroundLayer);
-stage.add(fiberLayer);
-stage.add(networkLayer);
-stage.add(cctvLayer);
-stage.add(powerLayer);
-stage.add(devicesLayer);
+Object.values(layers).forEach(l=>stage.add(l));
 
-function setTool(tool){
-  currentTool=tool;
+function setTool(t){tool=t;}
+
+function getStyle(t){
+  if(t==='fiber') return {c:'orange',w:4,l:layers.fiber};
+  if(t==='network') return {c:'deepskyblue',w:3,l:layers.network};
+  if(t==='cctv') return {c:'limegreen',w:3,l:layers.cctv};
+  if(t==='power') return {c:'red',w:5,l:layers.power};
 }
 
-function getLineStyle(tool){
+stage.on('mousedown touchstart',e=>{
+  if(tool==='select') return;
 
-  switch(tool){
-
-    case 'fiber':
-      return {
-        stroke:'orange',
-        dash:[],
-        width:4,
-        layer:fiberLayer
-      };
-
-    case 'network':
-      return {
-        stroke:'deepskyblue',
-        dash:[],
-        width:3,
-        layer:networkLayer
-      };
-
-    case 'cctv':
-      return {
-        stroke:'limegreen',
-        dash:[10,5],
-        width:3,
-        layer:cctvLayer
-      };
-
-    case 'power':
-      return {
-        stroke:'red',
-        dash:[],
-        width:5,
-        layer:powerLayer
-      };
-
-    case 'measure':
-      return {
-        stroke:'yellow',
-        dash:[5,5],
-        width:2,
-        layer:networkLayer
-      };
-
-  }
-
-}
-
-function getDistance(p1,p2){
-
-  return Math.sqrt(
-    (p2.x-p1.x)*(p2.x-p1.x)+
-    (p2.y-p1.y)*(p2.y-p1.y)
-  );
-
-}
-
-function getCenter(p1,p2){
-
-  return {
-    x:(p1.x+p2.x)/2,
-    y:(p1.y+p2.y)/2
-  };
-
-}
-
-stage.on('touchmove',function(e){
-
-  const touch1=e.evt.touches[0];
-  const touch2=e.evt.touches[1];
-
-  if(touch1 && touch2){
-
-    e.evt.preventDefault();
-
-    const p1={
-      x:touch1.clientX,
-      y:touch1.clientY
-    };
-
-    const p2={
-      x:touch2.clientX,
-      y:touch2.clientY
-    };
-
-    if(!lastCenter){
-
-      lastCenter=getCenter(p1,p2);
-      return;
-
-    }
-
-    const newCenter=getCenter(p1,p2);
-
-    const dist=getDistance(p1,p2);
-
-    if(!lastDist){
-      lastDist=dist;
-    }
-
-    const scale=stage.scaleX()*(dist/lastDist);
-
-    stage.scale({
-      x:scale,
-      y:scale
-    });
-
-    const pointTo={
-      x:(newCenter.x-stage.x())/stage.scaleX(),
-      y:(newCenter.y-stage.y())/stage.scaleX()
-    };
-
-    stage.position({
-      x:newCenter.x-pointTo.x*scale,
-      y:newCenter.y-pointTo.y*scale
-    });
-
-    lastDist=dist;
-    lastCenter=newCenter;
-
-  }
-
-});
-
-stage.on('touchend',()=>{
-
-  lastDist=0;
-  lastCenter=null;
-
-});
-
-stage.on('wheel',(e)=>{
-
-  e.evt.preventDefault();
-
-  const scaleBy=1.05;
-
-  const oldScale=stage.scaleX();
-
-  const pointer=stage.getPointerPosition();
-
-  const direction=e.evt.deltaY>0?-1:1;
-
-  const newScale=
-    direction>0
-    ? oldScale*scaleBy
-    : oldScale/scaleBy;
-
-  stage.scale({
-    x:newScale,
-    y:newScale
-  });
-
-  const mousePointTo={
-    x:(pointer.x-stage.x())/oldScale,
-    y:(pointer.y-stage.y())/oldScale
-  };
-
-  const newPos={
-    x:pointer.x-mousePointTo.x*newScale,
-    y:pointer.y-mousePointTo.y*newScale
-  };
-
-  stage.position(newPos);
-
-});
-
-stage.on('mousedown touchstart',(e)=>{
-
-  if(currentTool==='select') return;
-
-  if(e.evt.touches && e.evt.touches.length>1) return;
-
-  const pos=stage.getPointerPosition();
-
-  const style=getLineStyle(currentTool);
+  const p=stage.getPointerPosition();
+  const s=getStyle(tool);
 
   drawing=true;
 
-  currentLine=new Konva.Line({
-    points:[pos.x,pos.y,pos.x,pos.y],
-    stroke:style.stroke,
-    strokeWidth:style.width,
-    lineCap:'round',
-    lineJoin:'round',
-    dash:style.dash,
-    draggable:true
+  line=new Konva.Line({
+    points:[p.x,p.y,p.x,p.y],
+    stroke:s.c,
+    strokeWidth:s.w,
+    lineCap:'round'
   });
 
-  style.layer.add(currentLine);
-
+  s.l.add(line);
 });
 
 stage.on('mousemove touchmove',()=>{
+  if(!drawing||!line) return;
 
-  if(!drawing || !currentLine) return;
+  const p=stage.getPointerPosition();
+  let pts=line.points();
 
-  const pos=stage.getPointerPosition();
-
-  const points=currentLine.points();
-
-  currentLine.points([
-    points[0],
-    points[1],
-    pos.x,
-    pos.y
-  ]);
-
-  currentLine.getLayer().batchDraw();
-
+  line.points([pts[0],pts[1],p.x,p.y]);
 });
 
-stage.on('mouseup touchend',()=>{
-
-  drawing=false;
-
-});
+stage.on('mouseup touchend',()=>drawing=false);
 
 function addDevice(type){
 
-  let label='';
-  let color='white';
+  const iconMap={
+    camera:'📷',
+    rack:'🗄',
+    switch:'🖧',
+    router:'📡',
+    wifi:'📶',
+    door:'🚪',
+    barrier:'⛔',
+    nvr:'💽',
+    manhole:'⭕'
+  };
 
-  switch(type){
-
-    case 'camera':
-      label='📷';
-      color='lime';
-      break;
-
-    case 'ptz':
-      label='🎥';
-      color='cyan';
-      break;
-
-    case 'rack':
-      label='🗄';
-      color='orange';
-      break;
-
-    case 'switch':
-      label='🖧';
-      color='deepskyblue';
-      break;
-
-    case 'router':
-      label='📡';
-      color='violet';
-      break;
-
-    case 'wifi':
-      label='📶';
-      color='skyblue';
-      break;
-
-    case 'door':
-      label='🚪';
-      color='magenta';
-      break;
-
-    case 'barrier':
-      label='⛔';
-      color='red';
-      break;
-
-    case 'nvr':
-      label='💽';
-      color='yellow';
-      break;
-
-    case 'manhole':
-      label='⭕';
-      color='brown';
-      break;
-
-    case 'pole':
-      label='📍';
-      color='white';
-      break;
-
-  }
-
-  const group=new Konva.Group({
-    x:300,
+  const g=new Konva.Group({
+    x:200,
     y:200,
     draggable:true
   });
 
-  const bg=new Konva.Rect({
-    x:-10,
-    y:-10,
-    width:60,
-    height:60,
-    fill:'rgba(0,0,0,0.35)',
-    cornerRadius:12
+  const text=new Konva.Text({
+    text:iconMap[type],
+    fontSize:30,
+    fill:'white'
   });
 
-  const icon=new Konva.Text({
-    text:label,
-    fontSize:34,
-    fill:color
-  });
-
-  group.add(bg);
-  group.add(icon);
-
-  group.on('tap click',()=>{
-
-    selectedObject=group;
-
-    document.getElementById('deviceName').value=
-      type.toUpperCase();
-
-  });
-
-  devicesLayer.add(group);
-
-  devicesLayer.draw();
-
+  g.add(text);
+  layers.device.add(g);
 }
 
-function toggleLayer(layer){
-
-  const layers={
-    fiber:fiberLayer,
-    network:networkLayer,
-    cctv:cctvLayer,
-    power:powerLayer,
-    devices:devicesLayer
-  };
-
-  const l=layers[layer];
-
-  l.visible(!l.visible());
-
-  l.draw();
-
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('show');
 }
 
 function clearCanvas(){
-
-  fiberLayer.destroyChildren();
-  networkLayer.destroyChildren();
-  cctvLayer.destroyChildren();
-  powerLayer.destroyChildren();
-  devicesLayer.destroyChildren();
-
-  fiberLayer.draw();
-  networkLayer.draw();
-  cctvLayer.draw();
-  powerLayer.draw();
-  devicesLayer.draw();
-
+  Object.values(layers).forEach(l=>l.destroyChildren());
 }
 
-async function exportPDF(){
+function exportPDF(){
 
-  const dataURL=stage.toDataURL({
-    pixelRatio:2
-  });
+  const data=stage.toDataURL({pixelRatio:2});
 
   const {jsPDF}=window.jspdf;
 
-  const pdf=new jsPDF(
-    'landscape',
-    'px',
-    [2000,1200]
-  );
+  const pdf=new jsPDF('landscape','px',[2000,1200]);
 
-  pdf.addImage(
-    dataURL,
-    'PNG',
-    0,
-    0,
-    2000,
-    1200
-  );
+  pdf.addImage(data,'PNG',0,0,2000,1200);
 
-  pdf.save('network-layout.pdf');
-
+  pdf.save('layout.pdf');
 }
 
-const upload=document.getElementById('pdfUpload');
-
-upload.addEventListener('change',async(e)=>{
-
-  const file=e.target.files[0];
-
-  if(!file) return;
-
-  if(file.type==='application/pdf'){
-
-    const reader=new FileReader();
-
-    reader.onload=async function(){
-
-      const typedarray=new Uint8Array(this.result);
-
-      const pdf=await pdfjsLib.getDocument(typedarray).promise;
-
-      const page=await pdf.getPage(1);
-
-      const viewport=page.getViewport({
-        scale:2
-      });
-
-      const canvas=document.createElement('canvas');
-
-      const context=canvas.getContext('2d');
-
-      canvas.width=viewport.width;
-      canvas.height=viewport.height;
-
-      await page.render({
-        canvasContext:context,
-        viewport:viewport
-      }).promise;
-
-      const imageObj=new Image();
-
-      imageObj.onload=function(){
-
-        backgroundLayer.destroyChildren();
-
-        const bg=new Konva.Image({
-          image:imageObj,
-          x:0,
-          y:0,
-          width:viewport.width,
-          height:viewport.height
-        });
-
-        backgroundLayer.add(bg);
-
-        backgroundLayer.draw();
-
-      }
-
-      imageObj.src=canvas.toDataURL();
-
-    }
-
-    reader.readAsArrayBuffer(file);
-
-  }else{
-
-    const reader=new FileReader();
-
-    reader.onload=function(ev){
-
-      const imageObj=new Image();
-
-      imageObj.onload=function(){
-
-        backgroundLayer.destroyChildren();
-
-        const bg=new Konva.Image({
-          image:imageObj,
-          x:0,
-          y:0,
-          width:imageObj.width,
-          height:imageObj.height
-        });
-
-        backgroundLayer.add(bg);
-
-        backgroundLayer.draw();
-
-      }
-
-      imageObj.src=ev.target.result;
-
-    }
-
-    reader.readAsDataURL(file);
-
-  }
-
-});
-
 window.addEventListener('resize',()=>{
-
   stage.width(window.innerWidth);
   stage.height(window.innerHeight);
-
 });
 
 </script>
